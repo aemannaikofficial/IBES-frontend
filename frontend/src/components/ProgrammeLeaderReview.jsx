@@ -40,30 +40,62 @@ const ProgrammeLeaderReview = ({ applications, setApplications, userRole, userNa
   const handleDecision = async (decision) => {
     if (!viewingApp) return;
 
-    setNotification(`📧 Processing your ${decision}...`);
+    setNotification(`⏳ Saving your ${decision}...`);
+
+    // 1. Save application status IMMEDIATELY — do not await emails
+    const updatedApp = { 
+      ...viewingApp, 
+      status: decision === 'approve' ? 'approved' : 'rejected', 
+      currentStep: 4 
+    };
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/notify-admin`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leaderName: userName || "Programme Leader",
-          applicantName: viewingApp.fullName,
-          decision: decision
-        })
-      });
+      await apiSaveApplication(updatedApp);
+    } catch (e) {
+      console.error("Save error:", e);
+    }
 
-      if (!response.ok) throw new Error("Admin notification failed.");
+    setApplications((prev) =>
+      prev.map((app) =>
+        (app.id === viewingApp.id || app._id === viewingApp.id) ? updatedApp : app
+      )
+    );
 
-      // 📨 Trigger PDF email distribution on approval
-      const isTeacherApp = viewingApp.applicationType === 'Teacher Applicant' || 
-                          viewingApp.applicationType === 'Teacher' || 
-                          viewingApp.applicationType === 'Teacher Applicant Form';
+    // Store local in-app notification for admin
+    const adminNotifKey = 'ibes_notif_admin';
+    const existingAdminNotifs = JSON.parse(localStorage.getItem(adminNotifKey) || "[]");
+    const newAdminNotif = {
+      id: Date.now(),
+      applicantName: viewingApp.fullName,
+      leaderName: userName || "Programme Leader",
+      decision: decision,
+      timestamp: new Date().toLocaleString(),
+      read: false
+    };
+    localStorage.setItem(adminNotifKey, JSON.stringify([...existingAdminNotifs, newAdminNotif]));
 
-      if (decision === 'approve' && isTeacherApp) {
-        setNotification(`📨 Distributing approval documents via email...`);
+    setNotification(decision === 'approve' ? `✅ Application Approved!` : `✅ Application Rejected.`);
+    setTimeout(() => { setViewingApp(null); setNotification(""); }, 2000);
+
+    // 2. Fire notify-admin email in background (non-blocking)
+    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/notify-admin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        leaderName: userName || "Programme Leader",
+        applicantName: viewingApp.fullName,
+        decision: decision
+      })
+    }).catch(err => console.error("Admin notification failed:", err));
+
+    // 3. Fire PDF distribution in background on approval (non-blocking)
+    const isTeacherApp = viewingApp.applicationType === 'Teacher Applicant' || 
+                        viewingApp.applicationType === 'Teacher' || 
+                        viewingApp.applicationType === 'Teacher Applicant Form';
+
+    if (decision === 'approve' && isTeacherApp) {
+      (async () => {
         try {
-          // Generate the Tutor's PDF copy
           let pdfBase64 = null;
           try {
             pdfBase64 = await generateTutorApprovalPDFBlob(viewingApp, userName || "Programme Leader", "TUTOR");
@@ -71,7 +103,6 @@ const ProgrammeLeaderReview = ({ applications, setApplications, userRole, userNa
             console.error("Tutor PDF blob generation failed:", pdfGenErr);
           }
 
-          // Generate the Learning Centre's PDF copy
           let pdfBase64LC = null;
           try {
             pdfBase64LC = await generateTutorApprovalPDFBlob(viewingApp, userName || "Programme Leader", "LEARNING CENTRE");
@@ -79,7 +110,7 @@ const ProgrammeLeaderReview = ({ applications, setApplications, userRole, userNa
             console.error("Learning Centre PDF blob generation failed:", pdfGenErr);
           }
 
-          const distResponse = await fetch(
+          fetch(
             `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/distribute-approval-pdfs`,
             {
               method: 'POST',
@@ -106,57 +137,11 @@ const ProgrammeLeaderReview = ({ applications, setApplications, userRole, userNa
                 pdfBase64LC
               })
             }
-          );
-          const distData = await distResponse.json();
-          
-          if (distData.success) {
-            setNotification(`✅ Approved! The Tutor has been notified via email with the PDF attached.`);
-          } else {
-            setNotification(`✅ Approved. Email distribution encountered an issue — check server logs.`);
-          }
-        } catch (distErr) {
-          console.error("PDF Distribution Error:", distErr);
-          setNotification(`✅ Approved locally. Email distribution failed — check network.`);
+          ).catch(err => console.error("PDF distribution failed:", err));
+        } catch (err) {
+          console.error("PDF Distribution Error:", err);
         }
-      } else {
-        setNotification(`✅ Admin notified of your ${decision === 'approve' ? 'Approval' : 'Rejection'}!`);
-      }
-
-      // Store local notif for the admin
-      const adminNotifKey = 'ibes_notif_admin';
-      const existingAdminNotifs = JSON.parse(localStorage.getItem(adminNotifKey) || "[]");
-      const newAdminNotif = {
-        id: Date.now(),
-        applicantName: viewingApp.fullName,
-        leaderName: userName || "Programme Leader",
-        decision: decision,
-        timestamp: new Date().toLocaleString(),
-        read: false
-      };
-      localStorage.setItem(adminNotifKey, JSON.stringify([...existingAdminNotifs, newAdminNotif]));
-
-      const updatedApp = { 
-        ...viewingApp, 
-        status: decision === 'approve' ? 'approved' : 'rejected', 
-        currentStep: 4 
-      };
-      await apiSaveApplication(updatedApp);
-
-      setApplications((prev) =>
-        prev.map((app) =>
-          (app.id === viewingApp.id || app._id === viewingApp.id) ? updatedApp : app
-        )
-      );
-
-      setTimeout(() => { setViewingApp(null); setNotification(""); }, 4500);
-
-    } catch (error) {
-      console.error("Admin Notification Error:", error);
-      setNotification(`⚠️ Saved local decision. Network notification failed.`);
-      setApplications((prev) =>
-        prev.map((app) => app.id === viewingApp.id ? { ...app, status: decision === 'approve' ? 'approved' : 'rejected', currentStep: 4 } : app)
-      );
-      setTimeout(() => { setViewingApp(null); setNotification(""); }, 3000);
+      })();
     }
   };
 

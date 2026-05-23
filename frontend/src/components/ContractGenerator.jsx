@@ -38,7 +38,7 @@ Date:      ___________________________________
 const ContractGenerator = ({ app, intakes = [], availableModules = [], onClose }) => {
   const [intake, setIntake] = useState(intakes[0] || "");
   const [customIntake, setCustomIntake] = useState("");
-  const [moduleTitle, setModuleTitle] = useState(app?.ibesModules || app?.ibesprogrammes || "");
+  const [moduleTitle, setModuleTitle] = useState(app?.ibesModules || "");
   const [useCustomIntake, setUseCustomIntake] = useState(false);
   const [customModule, setCustomModule] = useState("");
   const [showContract, setShowContract] = useState(false);
