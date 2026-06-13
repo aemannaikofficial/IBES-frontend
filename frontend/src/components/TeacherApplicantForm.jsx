@@ -8,17 +8,17 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
   const [isUploading, setIsUploading] = useState(false);
   const formRef = useRef(null);
   const sigCanvas = useRef(null);
-  
+
   const [formData, setFormData] = useState({
     fullName: "", gender: "", homeAddress: "", contactNumber: "",
     occupation: "", employer: "", workAddress: "", workTelephone: "",
-    workEmail: "", approvedCentre: "", ibesprogrammes: isGeneral ? "General / All Programmes" : "", ibesModules: "",
+    workEmail: "", approvedCentre: "", ibesprogrammes: isGeneral ? "General / All Programmes" : "", ibesModules: [],
     employmentHistory: "", professionalQualifications: "", workingTowards1: "",
     teachingQualifications: "", workingTowards2: "", teachingEvidence: "",
     researchActivity: "", professionalMembership: "",
     profilePicture: null, resumeCV: [], idPassport: [], certificates: [], transcripts: [], signature: null,
   });
-  
+
   // useEffect removed as state is now initialized correctly
 
   const [fileNames, setFileNames] = useState({
@@ -35,7 +35,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
     if (files && files.length > 0) {
       const names = Array.from(files).map((f) => f.name).join(", ");
       setFileNames((prev) => ({ ...prev, [fieldName]: names }));
-      
+
       if (fieldName === 'profilePicture') {
         setFormData((prev) => ({ ...prev, [fieldName]: files[0] }));
       } else {
@@ -51,7 +51,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
     setFormData({
       fullName: "", gender: "", homeAddress: "", contactNumber: "",
       occupation: "", employer: "", workAddress: "", workTelephone: "",
-      workEmail: "", approvedCentre: "", ibesprogrammes: "", ibesModules: "",
+      workEmail: "", approvedCentre: "", ibesprogrammes: "", ibesModules: [],
       employmentHistory: "", professionalQualifications: "", workingTowards1: "",
       teachingQualifications: "", workingTowards2: "", teachingEvidence: "",
       researchActivity: "", professionalMembership: "",
@@ -68,7 +68,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
     if (!formData.idPassport || formData.idPassport.length === 0) missingDocs.push("ID / Passport");
     if (!formData.certificates || formData.certificates.length === 0) missingDocs.push("Certificates");
     if (!formData.transcripts || formData.transcripts.length === 0) missingDocs.push("Transcripts");
-    
+
     if (missingDocs.length > 0) {
       alert(`Please upload the following required documents:\n- ${missingDocs.join('\n- ')}`);
       return;
@@ -82,6 +82,10 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.ibesModules.length < 2) {
+      alert("Please select at least 2 modules.");
+      return;
+    }
     if (sigCanvas.current && sigCanvas.current.isEmpty()) {
       alert("Please provide an e-signature before submitting.");
       return;
@@ -120,7 +124,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
       // Trigger Distribution Notification (Change 5)
       const progLeaders = leaders.filter(l => l.programmes.includes(formData.ibesprogrammes));
       const recipientEmails = (progLeaders.length > 0 ? progLeaders : leaders).map(l => l.email);
-      
+
       // Always include Learning Center
       recipientEmails.push("learningcenter@ibes.fr");
 
@@ -155,11 +159,11 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
           <label htmlFor={id}>
             <UploadSimple weight="bold" size={18} />
             Browse Files
-            <input 
-              id={id} type="file" 
+            <input
+              id={id} type="file"
               multiple={isMultiple} accept={accept}
-              style={{ display: 'none' }} 
-              onChange={(e) => handleFileChange(e, fieldName)} 
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileChange(e, fieldName)}
             />
           </label>
         </div>
@@ -188,7 +192,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
       </div>
 
       <form ref={formRef} onSubmit={handleSubmit}>
-        
+
         {currentPage === 1 && (
           <>
             {/* 👤 Section 1: Applicant Profile */}
@@ -197,13 +201,13 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
                 <h2><UserCircle size={28} weight="duotone" color="var(--ibes-navy)" /> Applicant Profile</h2>
                 <p>Personal details and contact information.</p>
               </div>
-              
+
               <div className="form-grid">
                 <div className="form-group">
                   <label>Full Name & Title <span className="req">*</span></label>
                   <input type="text" className="ibes-input" name="fullName" value={formData.fullName} onChange={handleChange} required placeholder="Dr. John Doe" />
                 </div>
-                
+
                 <div className="form-group">
                   <label>Gender <span className="req">*</span></label>
                   <div className="radio-options-grid">
@@ -293,16 +297,32 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
 
                 <div className="form-group">
                   <label>IBES Module(s) <span className="req">*</span></label>
-                  <select className="ibes-input" name="ibesModules" value={formData.ibesModules} onChange={handleChange} required style={{ cursor: 'pointer' }}>
-                    <option value="" disabled hidden>-- Select Module Alignment --</option>
-                    <option value="Software Engineering">Software Engineering</option>
-                    <option value="Applied Project">Applied Project</option>
-                    <option value="Data Structures (Bridging Module)">Data Structures (Bridging Module)</option>
-                    <option value="Database Programming">Database Programming</option>
-                    <option value="Programming Languages (Bridging Module)">Programming Languages (Bridging Module)</option>
-                  </select>
-                </div>
-              </div>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                    Select minimum 2 modules
+                  </p>
+                  {["Software Engineering", "Applied Project", "Data Structures (Bridging Module)", "Database Programming", "Programming Languages (Bridging Module)"].map((module) => (
+                    <label key={module} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        value={module}
+                        checked={formData.ibesModules.includes(module)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData((prev) => ({
+                            ...prev,
+                            ibesModules: checked
+                              ? [...prev.ibesModules, module]
+                              : prev.ibesModules.filter((m) => m !== module)
+                          }));
+                        }}
+                      />
+                      {module}
+                    </label>
+                  ))}
+                  {formData.ibesModules.length < 2 && formData.ibesModules.length > 0 && (
+                    <p style={{ color: 'red', fontSize: '0.8rem' }}>Please select at least 2 modules</p>
+                  )}
+                </div>         </div>
             </div>
 
             {/* 📜 Section 4: Qualifications & Experience */}
@@ -372,7 +392,7 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
                 {renderFileInput("tTranscripts", "Certified Transcripts", "transcripts", true, "*/*", "Up to 10 files")}
               </div>
             </div>
-            
+
             {/* 🚀 Next Button Footer */}
             <div className="form-footer-actions">
               <button type="button" className="btn-clear" onClick={handleClear} style={{ color: '#64748b', fontWeight: '500' }}>Clear Form Data</button>
@@ -432,19 +452,19 @@ const TeacherApplicantForm = ({ onSubmit, leaders, isGeneral, programmes = [] })
               <button type="button" className="btn-clear" onClick={() => { setCurrentPage(1); window.scrollTo(0, 0); }} style={{ color: 'var(--ibes-navy)' }}>← Back to Form</button>
               <div className="action-buttons-group" style={{ display: 'flex', gap: '12px' }}>
                 <button type="button" className="btn-clear" onClick={handleClear} style={{ color: '#64748b' }}>Clear Data</button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isUploading}
-                  className="btn-premium" 
-                  style={{ 
-                    minWidth: '220px', 
-                    backgroundColor: isUploading ? '#94a3b8' : 'var(--ibes-red)', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '8px', 
-                    fontWeight: '700', 
-                    padding: '12px 24px', 
-                    cursor: isUploading ? 'not-allowed' : 'pointer', 
+                  className="btn-premium"
+                  style={{
+                    minWidth: '220px',
+                    backgroundColor: isUploading ? '#94a3b8' : 'var(--ibes-red)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    padding: '12px 24px',
+                    cursor: isUploading ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 12px rgba(231, 1, 57, 0.2)',
                     display: 'flex',
                     alignItems: 'center',

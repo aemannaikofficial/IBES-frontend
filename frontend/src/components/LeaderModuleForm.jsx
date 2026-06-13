@@ -5,11 +5,11 @@ import { apiUploadFiles } from "../utils/db";
 const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
   const [isUploading, setIsUploading] = useState(false);
   const formRef = useRef(null);
-  
+
   const [formData, setFormData] = useState({
     fullName: "", dateOfBirth: "", submissionDate: "", gender: "", homeAddress: "", contactNumber: "",
     occupation: "", employer: "", workAddress: "", workTelephone: "", workEmail: "", approvedCentre: "",
-    ibesProgrammes: "", ibesModules: "", employmentHistory: "", profAchieved: "", profWorkingTowards: "",
+    ibesProgrammes: "", ibesModules: [], employmentHistory: "", profAchieved: "", profWorkingTowards: "",
     teachAchieved: "", teachWorkingTowards: "", teachingEvidence: "", researchEvidence: "", professionalMembership: "",
     profilePicture: null, resumeCV: null, idPassport: null, certificates: null, transcripts: null,
   });
@@ -38,7 +38,7 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
     setFormData({
       fullName: "", dateOfBirth: "", submissionDate: "", gender: "", homeAddress: "", contactNumber: "",
       occupation: "", employer: "", workAddress: "", workTelephone: "", workEmail: "", approvedCentre: "",
-      ibesProgrammes: "", ibesModules: "", employmentHistory: "", profAchieved: "", profWorkingTowards: "",
+      ibesProgrammes: "", ibesModules: [], employmentHistory: "", profAchieved: "", profWorkingTowards: "",
       teachAchieved: "", teachWorkingTowards: "", teachingEvidence: "", researchEvidence: "", professionalMembership: "",
       profilePicture: null, resumeCV: null, idPassport: null, certificates: null, transcripts: null,
     });
@@ -47,6 +47,12 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (formData.ibesModules.length < 2) {
+      alert("Please select at least 2 modules.");
+      setIsUploading(false);
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -89,11 +95,11 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
         <div className="upload-button-wrapper">
           <label htmlFor={id}>
             <UploadSimple weight="bold" size={18} /> Browse File
-            <input 
-              id={id} type="file" 
-              accept={accept} 
-              style={{ display: 'none' }} 
-              onChange={(e) => handleFileChange(e, fieldName)} 
+            <input
+              id={id} type="file"
+              accept={accept}
+              style={{ display: 'none' }}
+              onChange={(e) => handleFileChange(e, fieldName)}
               required={!formData[fieldName]}
             />
           </label>
@@ -122,7 +128,7 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
       </div>
 
       <form ref={formRef} onSubmit={handleSubmit}>
-        
+
         {/* 👤 Applicant Profile */}
         <div className="form-section">
           <div className="section-header">
@@ -218,13 +224,31 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
             </div>
             <div className="form-group">
               <label>IBES Module(s) <span className="req">*</span></label>
-              <select className="ibes-input" name="ibesModules" value={formData.ibesModules} onChange={handleChange} required>
-                <option value="" disabled hidden>-- Select Module Alignment --</option>
-                <option value="Advanced Research Methods">Advanced Research Methods</option>
-                <option value="Strategic Leadership">Strategic Leadership</option>
-                <option value="Global Economics">Global Economics</option>
-                <option value="Information Systems">Information Systems</option>
-              </select>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                Select minimum 2 modules
+              </p>
+              {["Advanced Research Methods", "Strategic Leadership", "Global Economics", "Information Systems"].map((module) => (
+                <label key={module} style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    value={module}
+                    checked={formData.ibesModules.includes(module)}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setFormData((prev) => ({
+                        ...prev,
+                        ibesModules: checked
+                          ? [...prev.ibesModules, module]
+                          : prev.ibesModules.filter((m) => m !== module)
+                      }));
+                    }}
+                  />
+                  {module}
+                </label>
+              ))}
+              {formData.ibesModules.length < 2 && formData.ibesModules.length > 0 && (
+                <p style={{ color: 'red', fontSize: '0.8rem' }}>Please select at least 2 modules</p>
+              )}
             </div>
           </div>
         </div>
@@ -289,23 +313,23 @@ const LeaderModuleForm = ({ onSubmit, programmes = [] }) => {
             {renderFileInput("lTranscripts", "Certified Transcripts", "transcripts", ".pdf,image/*", "PDF/Image")}
           </div>
         </div>
-        
+
         {/* 🚀 Submission */}
         <div className="form-footer-actions">
           <button type="button" className="btn-clear" onClick={handleClear} style={{ color: '#64748b', fontWeight: '500' }}>Reset Form Fields</button>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isUploading}
-            className="btn-premium" 
-            style={{ 
-              minWidth: '220px', 
-              backgroundColor: isUploading ? '#94a3b8' : 'var(--ibes-red)', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '8px', 
-              fontWeight: '700', 
-              padding: '12px 24px', 
-              cursor: isUploading ? 'not-allowed' : 'pointer', 
+            className="btn-premium"
+            style={{
+              minWidth: '220px',
+              backgroundColor: isUploading ? '#94a3b8' : 'var(--ibes-red)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '700',
+              padding: '12px 24px',
+              cursor: isUploading ? 'not-allowed' : 'pointer',
               boxShadow: '0 4px 12px rgba(231, 1, 57, 0.2)',
               display: 'flex',
               alignItems: 'center',
